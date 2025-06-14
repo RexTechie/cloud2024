@@ -1,0 +1,120 @@
+server:
+  port: 80
+
+spring:
+  application:
+    name: cloud-order-openfeign-service
+  cloud:
+    consul:
+      host: localhost
+      port: 8500
+      discovery:
+        service-name: ${spring.application.name}
+        prefer-ip-address: true # 优先使用服务ip进行注册
+    openfeign:
+      compression:
+        request:
+          enabled: true
+          min-request-size: 2048 # 最小触发压缩的大小
+          mime-types: text/xml, application/xml, application/json # 触发压缩的数据类型
+        response:
+          enabled: true
+      # 使用指定的httpclient
+      httpclient:
+        hc5:
+          enabled: true
+      client:
+        config:
+          default:
+            # 连接超时时间
+            connectTimeout: 3000
+            # 读取超时时间
+            readTimeout: 3000
+          # 指定服务的配置
+          cloud-payment-service:
+            # 连接超时时间
+            connectTimeout: 20000
+            # 读取超时时间
+            readTimeout: 20000
+#      # 开启circuitbreaker和分组激活
+#      circuitbreaker:
+#        enabled: true
+#        group:
+#          enabled: true # 没开分组永远不用分组的配置。精确优先，分组次之（开了分组）。默认最后。
+
+# Resilience4j CircuitBreaker 按照时间，TIME_BASED的例子
+#resilience4j:
+  # 使用线程池隔离
+#  thread-pool-bulkhead:
+#    configs:
+#      default:
+#        max-thread-pool-size: 1
+#        core-thread-pool-size: 1
+#        queue-capacity: 1
+  # 使用信号量隔离
+#  bulkhead:
+#    configs:
+#      default:
+#        max-concurrent-calls: 2 # 隔离允许并发线程执行的最大数量
+#        max-wait-duration: 1s # 当达到并发调用数量时，新的线程阻塞时间，我只愿意等待1秒，过时不候进舱壁兜底fallback
+  # 使用基于请求数的滑动窗口
+#  6次访问中当执行方法的失败率达到50%时CircuitBreaker将进入开启OPEN状态(保险丝跳闸断电)拒绝所有请求。
+#  等待5秒后，CircuitBreaker将自动从开启OPEN状态过渡到半开HALF_OPEN状态，允许一些请求通过以测试服务是否恢复正常。
+#  如还是异常CircuitBreaker将重新进入开启OPEN状态；如正常将进入关闭CLOSE闭合状态恢复正常处理请求。
+#  circuitbreaker:
+#    configs:
+#      default:
+#        failure-rate-threshold: 50 # 设置50%的失败率阈值，超过失败请求百分比CircuitBreaker变为open
+#        sliding-window-type: COUNT_BASED # 滑动窗口的类型
+#        sliding-window-size: 6 # 滑动窗口的大小，单位为请求数
+#        minimum-number-of-calls: 6 # 断路器计算失败率或慢调用之前所需的最小样本（每个滑动窗口周期）
+#        automatic-transition-from-open-to-half-open-enabled: true # 是否启用自动从开启到半开启状态，默认值为false
+#        wait-duration-in-open-state: 5s # 从OPEN到HALF_OPEN状态的等待时间
+#        permitted-number-of-calls-in-half-open-state: 2 # 半开状态允许的最大请求数，默认值为10.
+#        record-exceptions:
+#          - java.lang.Exception
+#    instances:
+#      cloud-payment-service:
+#        base-config: default # 使用默认配置
+   # 使用基于时间的滑动窗口
+#  circuitbreaker:
+#    configs:
+#      default:
+#        failure-rate-threshold: 50 # 设置50%的失败率阈值，超过失败请求百分比CircuitBreaker变为open
+#        slow-call-duration-threshold: 2s # 慢调用时间阈值，高于此时间的调用将被视为慢调用并增加调用比例。
+#        slow-call-rate-threshold: 30 # 慢调用百分比阈值，超过此百分比的慢调用将触发断路器。
+#        sliding-window-type: TIME_BASED
+#        sliding-window-size: 2 # 滑动窗口的大小配置，配置TIME_BASED表示2秒
+#        minimum-number-of-calls: 2 # 断路器计算失败率或慢调用之前所需的最小样本（每个滑动窗口周期）
+#        permitted-number-of-calls-in-half-open-state: 2 # 半开状态允许的最大请求数，默认值为10.
+#        wait-duration-in-open-state: 5s # 从OPEN到HALF_OPEN状态的等待时间
+#        record-exceptions:
+#          - java.lang.Exception
+
+#    timelimiter:
+#      configs:
+#        default:
+#          timeout-duration: 10s # 注意：timelimiter默认限制远程1s，超过1s就超时异常，配置了降级，就走降级逻辑
+    # 限流配置
+#    ratelimiter:
+#      configs:
+#        default:
+#          limit-for-period: 2 # 再一次刷新周期内允许的最大请求数
+#          limit-refresh-period: 1s # 限流器每隔limitRefreshPeriod刷新一次，将允许处理的最大请求数量重置为limitForPeriod
+#          timeout-duration: 1 # 线程等待权限的默认等待时间
+#    instances:
+#      cloud-payment-service:
+#        base-config: default # 使用默认配置
+
+# ================ Zipkin Tracing Configuration ================
+management:
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+  tracing:
+    sampling:
+      probability: 1.0 # 采样率默认是0.1，（0.1就是10次只能有一次被记录下来），值越大收集越及时
+
+logging:
+  level:
+    space.rexhub.cloud.api.PayFeignApi: DEBUG
